@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Customer Support Chat</title>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f4; margin: 0; padding: 20px; }
+        #chat-box { max-width: 600px; margin: auto; background: white; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); border-radius: 8px; }
+        #messages { border: 1px solid #ccc; padding: 10px; height: 400px; overflow-y: scroll; margin-bottom: 10px; }
+        .message { padding: 8px; margin-bottom: 5px; border-radius: 4px; }
+        .customer { background-color: #d1e7dd; text-align: right; }
+        .agent { background-color: #f8d7da; text-align: left; }
+        #input-area { display: flex; }
+        #message-input { flex-grow: 1; padding: 8px; border: 1px solid #ccc; border-radius: 4px 0 0 4px; }
+        #send-button { padding: 8px 12px; border: none; background-color: #007bff; color: white; cursor: pointer; border-radius: 0 4px 4px 0; }
+        #typing-indicator { font-style: italic; color: #666; margin-top: 5px; }
+    </style>
+</head>
+<body>
+
+<div id="chat-box">
+    <h3>Customer Support Chat</h3>
+    <div id="messages"></div>
+    <div id="typing-indicator"></div>
+    <div id="input-area">
+        <input type="text" id="message-input" placeholder="Type a message...">
+        <button id="send-button">Send</button>
+    </div>
+</div>
+
+<script>
+    const ws = new WebSocket('ws://localhost:3000');//Establish a persistent connection to the WebSocket server.
+    const messagesEl = document.getElementById('messages');
+    const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('send-button');
+    const typingIndicatorEl = document.getElementById('typing-indicator');
+
+    const username = 'Customer';
+
+    function addMessage(message, isMe) {
+        const messageEl = document.createElement('div');
+        messageEl.className = 'message ' + (isMe ? 'customer' : 'agent');
+        messageEl.textContent = `${message.user}: ${message.text}`;
+        messagesEl.appendChild(messageEl);
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    //It is triggered when the connection to the server is successful.
+    ws.onopen = () => {
+        console.log('Connected to the server!');
+    };
+
+    //Listens for messages coming from the server. Parses the data (via JSON.parse) and then takes action based on data.type:
+    ws.onmessage = event => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'history') {
+            data.messages.forEach(msg => addMessage(msg, msg.user === username));
+        } else if (data.type === 'message') {
+            addMessage(data.message, data.message.user === username);
+        } else if (data.type === 'typing') {
+            typingIndicatorEl.textContent = `${data.user} is typing...`;
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => typingIndicatorEl.textContent = '', 2000);
+        }
+    };
+
+    sendButton.onclick = () => {
+        const text = messageInput.value.trim();
+        if (text) {
+            const message = { type: 'message', user: username, text: text, timestamp: new Date() };
+            ws.send(JSON.stringify(message));
+            messageInput.value = '';
+        }
+    };
+
+    let typingTimeout;
+    messageInput.onkeyup = () => {
+        ws.send(JSON.stringify({ type: 'typing', user: username }));
+        clearTimeout(typingTimeout);
+        typingTimeout = setTimeout(() => typingIndicatorEl.textContent = '', 2000);
+    };
+
+</script>
+
+</body>
+</html>

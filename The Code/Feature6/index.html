@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>System-Wide Announcements Demo</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; min-height: 100vh; background-color: #f4f4f4; margin: 0; }
+        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 600px; margin: 20px; }
+        h1 { color: #333; }
+        .announcements-list { list-style-type: none; padding: 0; }
+        .announcements-list li { background-color: #e9ecef; padding: 10px; margin-bottom: 8px; border-radius: 4px; }
+        .sender-form { display: flex; flex-direction: column; }
+        .sender-form input, .sender-form button { padding: 10px; margin-top: 10px; border-radius: 4px; border: 1px solid #ccc; }
+        .sender-form button { background-color: #007bff; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>system announcements</h1>
+        <ul id="announcements-list" class="announcements-list">
+            <li>Connecting to announcements service...</li>
+        </ul>
+    </div>
+
+    <div class="container">
+        <h2>send new announcement</h2>
+        <div class="sender-form">
+            <input type="text" id="announcement-input" placeholder="write a new announcement">
+            <button onclick="sendNewAnnouncement()">send</button>
+        </div>
+    </div>
+
+    <script>
+        const announcementsList = document.getElementById('announcements-list');
+        const announcementInput = document.getElementById('announcement-input');
+        const eventSource = new EventSource('http://localhost:3000/announcements/stream');
+
+        eventSource.onmessage = function(event) {
+            const announcement = JSON.parse(event.data);
+            const newItem = document.createElement('li');
+            newItem.textContent = `${announcement.text}`;
+            announcementsList.prepend(newItem);
+        };
+        async function sendNewAnnouncement() {
+            const text = announcementInput.value;
+            if (!text) return;
+
+            await fetch('http://localhost:3000/announcements/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text })
+            });
+
+            announcementInput.value = '';
+        }
+    </script>
+</body>
+</html>

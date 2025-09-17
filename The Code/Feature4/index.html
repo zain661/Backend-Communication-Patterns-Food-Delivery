@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <h1>Restaurant Dashboard</h1>
+  <ul id="orders"></ul>
+
+  <script>
+    const evtSource = new EventSource('http://localhost:3000/orders/stream');
+    const ordersList = document.getElementById('orders');
+
+    evtSource.onopen = () => console.log('Dashboard: SSE connection opened');
+    evtSource.onmessage = (e) => {
+      console.log('Dashboard: message received', e.data);
+      const order = JSON.parse(e.data);
+      const li = document.createElement('li');
+      li.textContent = `Order #${order.id}: ${order.item}`;
+      ordersList.appendChild(li);
+    };
+    evtSource.onerror = (err) => console.error('Dashboard: SSE error', err);
+  </script>
+</body>
+</html>

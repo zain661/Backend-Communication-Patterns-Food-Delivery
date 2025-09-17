@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Short Polling Order Tracking</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        input[type="text"] {
+            padding: 10px;
+            margin-bottom: 20px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            background-color: #4caf50;
+            color: white;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .status-message {
+            margin-top: 20px;
+            font-weight: bold;
+            color: #333;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Order Tracking</h1>
+        <input type="text" id="orderNumberInput" placeholder="Enter Order Number">
+        <button id="trackButton">Track Order</button>
+        <div id="statusMessage" class="status-message"></div>
+    </div>
+    <script>
+        const trackButton = document.getElementById('trackButton');
+        const orderNumberInput = document.getElementById('orderNumberInput');
+        const statusMessage = document.getElementById('statusMessage');
+        trackButton.addEventListener('click', () => {
+            const orderNumber = orderNumberInput.value;
+            if (!orderNumber) {
+                alert('Please enter an order number.');
+                return;
+            }
+            fetch('/track-order', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ order_number: orderNumber })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data.job_id);
+                    statusMessage.textContent = `Tracking started. Job ID: ${data.job_id}`;
+                    pollStatus(data.job_id);
+                })
+                .catch(error => {
+                    statusMessage.textContent = 'Failed to start tracking.';
+                    console.error('Error:', error);
+                });
+                
+            function pollStatus(jobId) {
+                let intervalId = setInterval(() => {
+                    fetch(`/track-order-status?job_id=${jobId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            statusMessage.textContent = `Order Status: ${data.status}`;
+
+                            if (data.status === 'shipped') {
+                                clearInterval(intervalId);
+                                statusMessage.textContent += ' - Your order has been shipped!';
+                            }
+                        })
+                        .catch(error => {
+                            statusMessage.textContent = 'Failed to get status.';
+                            console.error('Error:', error);
+                            clearInterval(intervalId); 
+                        });
+                }, 30000); 
+            }
+        });
+    </script>
+</body>

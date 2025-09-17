@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Customer Account Management Demo</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; background-color: #f4f4f4; margin: 0; }
+        .container { background: white; padding: 40px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); width: 400px; text-align: center; margin-bottom: 20px; }
+        h1, h2 { color: #333; }
+        input, button { padding: 10px; margin-bottom: 10px; width: 80%; border: 1px solid #ccc; border-radius: 4px; }
+        button { background-color: #4caf50; color: white; border: none; cursor: pointer; }
+        .result-message { margin-top: 15px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Login</h2>
+        <input type="text" id="loginUsername" placeholder="Username">
+        <input type="password" id="loginPassword" placeholder="Password">
+        <button onclick="login()">Login</button>
+        <div id="loginResult" class="result-message"></div>
+    </div>
+
+    <div class="container">
+        <h2>Profile</h2>
+        <input type="text" id="profileName" placeholder="New Name">
+        <input type="email" id="profileEmail" placeholder="New Email">
+        <button onclick="updateProfile()">Update Profile</button>
+        <div id="profileResult" class="result-message"></div>
+    </div>
+
+    <div class="container">
+        <h2>Payment</h2>
+        <input type="text" id="cardNumber" placeholder="Card Number">
+        <input type="text" id="amount" placeholder="Amount">
+        <button onclick="processPayment()">Process Payment</button>
+        <div id="paymentResult" class="result-message"></div>
+    </div>
+
+    <script>
+        let token = localStorage.getItem('token') || null;
+        async function login() {
+            const username = document.getElementById('loginUsername').value;
+            const password = document.getElementById('loginPassword').value;
+            const resultDiv = document.getElementById('loginResult');
+
+            try {
+                const response = await fetch('/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    token = data.token;
+                    localStorage.setItem('token', token);
+                    resultDiv.textContent = 'Login successful!';
+                    console.log('Token:', token);
+                } else {
+                    resultDiv.textContent = data.error;
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Login failed';
+                console.error('Error:', error);
+            }
+        }
+        async function updateProfile() {
+            const newName = document.getElementById('profileName').value;
+            const newEmail = document.getElementById('profileEmail').value;
+            const resultDiv = document.getElementById('profileResult');
+
+            if (!token) {
+                resultDiv.textContent = 'Please login first.';
+                return;
+            }
+
+            try {
+                const response = await fetch('/profile', {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ name: newName, email: newEmail })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    resultDiv.textContent = 'Profile updated successfully!';
+                } else {
+                    resultDiv.textContent = data.error;
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Failed to update profile. Server not reachable.';
+                console.error('Error:', error);
+            }
+        }
+        async function processPayment() {
+            const cardNumber = document.getElementById('cardNumber').value;
+            const amount = document.getElementById('amount').value;
+            const resultDiv = document.getElementById('paymentResult');
+
+            if (!token) {
+                resultDiv.textContent = 'Please login first.';
+                return;
+            }
+
+            try {
+                const response = await fetch('/payment', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` 
+                    },
+                    body: JSON.stringify({ cardNumber, amount })
+                });
+
+                const data = await response.json();
+                if (response.ok) {
+                    resultDiv.textContent = 'Payment processed successfully!';
+                } else {
+                    resultDiv.textContent = data.error;
+                }
+            } catch (error) {
+                resultDiv.textContent = 'Failed to process payment. Server not reachable.';
+                console.error('Error:', error);
+            }
+        }
+    </script>
+</body>
+</html>

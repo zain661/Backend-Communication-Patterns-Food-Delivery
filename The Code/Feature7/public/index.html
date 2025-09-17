@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Hybrid Upload Demo</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; margin: 0; background-color: #f4f4f4; }
+        .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); text-align: center; }
+        input[type="file"] { margin-bottom: 20px; }
+        .progress-container { width: 100%; height: 20px; background-color: #e0e0e0; border-radius: 5px; overflow: hidden; margin-top: 15px; }
+        .progress-bar { height: 100%; width: 0; background-color: #4caf50; transition: width 0.3s ease-in-out; }
+        .status-message { margin-top: 15px; font-weight: bold; color: #333; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Image Upload Demo</h1>
+    <input type="file" id="fileInput" name="image" accept="image/*">
+    <div class="progress-container">
+        <div id="progressBar" class="progress-bar"></div>
+    </div>
+    <div id="statusMessage" class="status-message">Ready to upload.</div>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const progressBar = document.getElementById('progressBar');
+    const statusMessage = document.getElementById('statusMessage');
+
+    fileInput.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const formData = new FormData();
+        formData.append('image', file);
+        
+        statusMessage.textContent = 'Uploading...';
+        
+        // Executed when the file is selected. This creates a new HTTP request.
+        const xhr = new XMLHttpRequest();
+        //Preparation. Specifies the type of request and the address.
+        xhr.open('POST', 'http://localhost:3000/upload-file', true); //It just tells the browser to "Prepare to send a file to this address."
+        
+        //Progress bar. Updates the percentage while downloading.
+        xhr.upload.addEventListener('progress', (e) => {
+            if (e.lengthComputable) {
+                const percentComplete = (e.loaded / e.total) * 100;
+                progressBar.style.width = percentComplete + '%';
+                statusMessage.textContent = `Uploading: ${Math.round(percentComplete)}%`;
+            }
+        });
+        //Response. Executes when it receives the load response and gets the jobId.
+        xhr.onload = () => {
+            if (xhr.status === 200) {
+                statusMessage.textContent = 'Upload complete. Processing started...';
+                const data = JSON.parse(xhr.responseText);
+                // start Long Polling stage
+                pollStatus(data.jobId);
+            } else {
+                statusMessage.textContent = 'Upload failed!';
+                console.error('Upload failed with status ' + xhr.status);
+            }
+        };
+
+        xhr.onerror = () => {
+            statusMessage.textContent = 'Network error during upload.';
+            console.error('Network error.');
+        };
+        // this is step number 1:  Send. Sends the actual request along with the image data.
+        xhr.send(formData);
+    });
+
+    // Monitoring. Starts a Long Polling process to monitor processing on the server.
+    function pollStatus(jobId) {
+        fetch(`http://localhost:3000/status/${jobId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'complete') {
+                    statusMessage.textContent = data.message;
+                    progressBar.style.width = '100%';
+                } else {
+                    statusMessage.textContent = 'Processing...';
+                    setTimeout(() => pollStatus(jobId), 1000);  //The delay ensures reliability and continuity of monitoring even in the event of a connection failure.
+                }
+            })
+            .catch(error => {
+                statusMessage.textContent = 'Status check failed!';
+                console.error('Error during status check:', error);
+            });
+    }
+</script>
+
+</body>
+</html>
